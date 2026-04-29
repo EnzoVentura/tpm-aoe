@@ -135,7 +135,7 @@ par numéro.
 
 | ID | Titre | Statut | Priorité |
 |---|---|---|---|
-| _aucune idée pour l'instant_ | | | |
+| [0001](./0001-multi-modeles-non-tpm.md) | Sessions multi-modèles avec contexte projet, sans TPM | idée | medium |
 
 ---
 
