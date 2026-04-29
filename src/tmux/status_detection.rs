@@ -631,6 +631,51 @@ pub fn detect_gemini_status(raw_content: &str) -> Status {
     Status::Idle
 }
 
+pub fn detect_ollama_status(raw_content: &str) -> Status {
+    let content = raw_content.to_lowercase();
+    let lines: Vec<&str> = content.lines().collect();
+    let non_empty_lines: Vec<&str> = lines
+        .iter()
+        .filter(|l| !l.trim().is_empty())
+        .copied()
+        .collect();
+
+    let last_lines: String = non_empty_lines
+        .iter()
+        .rev()
+        .take(30)
+        .rev()
+        .copied()
+        .collect::<Vec<&str>>()
+        .join("\n");
+    let last_lines_lower = last_lines.to_lowercase();
+
+    // RUNNING: Ollama typically shows spinners when generating text
+    for line in &lines {
+        for spinner in SPINNER_CHARS {
+            if line.contains(spinner) {
+                return Status::Running;
+            }
+        }
+    }
+
+    if last_lines_lower.contains("esc to interrupt")
+        || last_lines_lower.contains("ctrl+c to interrupt")
+    {
+        return Status::Running;
+    }
+
+    // WAITING: Input prompt is '>>> '
+    for line in non_empty_lines.iter().rev().take(10) {
+        let clean_line = strip_ansi(line).trim().to_string();
+        if clean_line == ">>>" || clean_line == ">>> " || clean_line.starts_with(">>> ") {
+            return Status::Waiting;
+        }
+    }
+
+    Status::Idle
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -950,5 +995,24 @@ mod tests {
     fn test_detect_settl_status_is_stub() {
         // settl uses hook-based detection; the stub always returns Idle
         assert_eq!(detect_settl_status("anything"), Status::Idle);
+    }
+
+    #[test]
+    fn test_detect_ollama_status_running() {
+        assert_eq!(detect_ollama_status("generating ⠋"), Status::Running);
+        assert_eq!(detect_ollama_status("esc to interrupt"), Status::Running);
+    }
+
+    #[test]
+    fn test_detect_ollama_status_waiting() {
+        assert_eq!(detect_ollama_status(">>> "), Status::Waiting);
+        assert_eq!(detect_ollama_status(">>>"), Status::Waiting);
+        assert_eq!(detect_ollama_status(">>> how are you?"), Status::Waiting);
+    }
+
+    #[test]
+    fn test_detect_ollama_status_idle() {
+        assert_eq!(detect_ollama_status("hello world"), Status::Idle);
+        assert_eq!(detect_ollama_status(""), Status::Idle);
     }
 }
