@@ -202,6 +202,52 @@ Spécifiquement :
 
 ---
 
+## Espace d'idées (`ideas/`)
+
+Le dossier **`ideas/`** à la racine du repo héberge les idées d'évolution
+du fork. Chaque idée vit dans un fichier `.md` numéroté, suivant un format
+imposé par `ideas/_template.md`.
+
+**Quand l'utilisateur évoque une idée nouvelle** :
+
+1. Vérifier si elle existe déjà avec un quick `grep -l <mot-clé> ideas/`.
+2. Si elle est nouvelle :
+   - Trouver le prochain numéro libre :
+     `ls ideas/[0-9]*.md 2>/dev/null | sort | tail -1`
+   - Copier le template : `cp ideas/_template.md ideas/NNNN-slug.md`
+   - Remplir les 4 sections : **Idée**, **But**, **Fonctionnement
+     technique**, **Besoin** (en respectant les longueurs suggérées dans
+     le template — l'idée doit tenir sur un écran).
+   - Compléter le frontmatter (`id`, `title`, `status: idée`,
+     `priority`, `created`, `tags`).
+   - Mettre à jour le tableau "Index" dans `ideas/README.md`.
+   - Commit : `docs(ideas): NNNN — titre court`.
+
+3. Si elle existe déjà : ouvrir le fichier existant et l'enrichir, plutôt
+   que d'en créer un nouveau.
+
+**Quand l'utilisateur veut "piocher" dans la liste pour bosser sur une
+idée** :
+
+1. Lire le fichier de l'idée concernée.
+2. Modifier son frontmatter : `status: en-cours`, ajouter `branch: ...`.
+3. Créer la branche correspondante et implémenter.
+4. À la fin, passer le statut à `terminé` (avec `closed: YYYY-MM-DD`).
+
+**Règles spécifiques à `ideas/`** :
+
+- Le numéro `NNNN` est **immuable** une fois assigné. On ne le réutilise
+  jamais, même pour une idée abandonnée.
+- Les fichiers d'idées **terminées ou abandonnées restent en place** — ce
+  sont des archives, utiles pour grep et pour comprendre les décisions
+  passées.
+- Tags suggérés (liste libre) : `tui`, `cli`, `web`, `tpm`, `serve`,
+  `sandbox`, `worktree`, `tmux`, `events`, `performance`, `refactor`,
+  `dx`, `ux`, `serveur`, `mobile`.
+- Voir `ideas/README.md` pour la doc complète du système.
+
+---
+
 ## Cartographie rapide du repo
 
 ```
@@ -225,6 +271,7 @@ docs/                  doc utilisateur (source canonique pour le site web)
 tests/                 tests d'intégration + e2e
 xtask/                 workspace d'automatisation de build
 
+ideas/                 espace d'idées de fonctionnalités (fork-only)
 .claude/skills/        skills locaux au repo (docs-review, ship)
 target/release/aoe     le binaire symlinké
 ```
