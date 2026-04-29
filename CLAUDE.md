@@ -1,228 +1,272 @@
 # CLAUDE.md — fork perso `EnzoVentura/tpm-aoe`
 
-This repository is **a personal fork of `Loulen/tpm-aoe`**, maintained by Enzo
-Ventura for personal use. It is **not** a contribution staging area for the
-upstream project. Everything you do here lands on `EnzoVentura/tpm-aoe`,
-never on `Loulen/tpm-aoe`.
+Ce dépôt est **un fork personnel de `Loulen/tpm-aoe`**, maintenu par Enzo
+Ventura pour son usage personnel. Ce n'est **pas** une zone de pré-contribution
+vers le projet upstream. Tout ce que tu fais ici est destiné à
+`EnzoVentura/tpm-aoe`, jamais à `Loulen/tpm-aoe`.
 
-> If you are working in this repo as Claude Code, **read this file first**, then
-> defer to [AGENTS.md](./AGENTS.md) for the inherited Rust / build / test
-> conventions of the upstream project.
+> Si tu travailles dans ce dépôt en tant que Claude Code, **lis ce fichier en
+> premier**, puis réfère-toi à [AGENTS.md](./AGENTS.md) pour les conventions
+> Rust / build / test héritées du projet upstream (volontairement laissé en
+> anglais pour limiter les conflits de merge avec upstream).
 
 ---
 
-## Identity & remote topology
+## Langue du projet
 
-| Remote | URL | Purpose |
+**Tout ce que tu écris dans ce dépôt et toute communication avec
+l'utilisateur doivent être en français.** Cela inclut :
+
+- Les messages adressés à l'utilisateur dans la session.
+- Les fichiers de documentation que tu créés ou modifies (`CLAUDE.md`,
+  `CONTRIBUTING.md`, tout nouveau fichier `.md` que tu crées).
+- Les messages de commit (le préfixe conventionnel reste en anglais :
+  `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `test:` — mais la suite
+  du message est en français).
+- Les commentaires que tu ajoutes dans du code que tu modifies *si tu en
+  ajoutes*. Ne traduis pas en masse les commentaires existants ; ne touche
+  qu'à ceux que tu ajoutes ou réécris.
+- Les nouveaux noms de branches `git` peuvent rester en anglais minimaliste
+  (`feat/short-name`) parce qu'ils sont conventionnels.
+
+**Ce qui reste en anglais :**
+
+- Le code Rust : identifiants, fonctions, types, doc strings techniques.
+- `AGENTS.md` (vient d'upstream, on n'y touche pas).
+- Les noms de fichiers, de modules, de tests.
+- Les conventional commit prefixes (`feat:`, `fix:`, etc.).
+
+L'utilisateur a explicitement demandé le français pour ce projet. Si jamais
+tu lis cette instruction et qu'elle te semble en conflit avec un réflexe
+d'écrire en anglais, suis cette instruction.
+
+---
+
+## Identité et topologie des remotes
+
+| Remote | URL | Usage |
 |---|---|---|
-| `origin` | `git@github.com-perso:EnzoVentura/tpm-aoe.git` | The fork. **All pushes go here.** |
-| `upstream` | `https://github.com/Loulen/tpm-aoe.git` | Read-only. **Fetch only**, used to pull improvements from Loulen. |
+| `origin` | `git@github.com-perso:EnzoVentura/tpm-aoe.git` | Le fork. **Tous les push vont ici.** |
+| `upstream` | `https://github.com/Loulen/tpm-aoe.git` | Lecture seule. **Fetch uniquement**, pour récupérer les améliorations de Loulen. |
 
-- Active branch: **`main`** (synced with `upstream/main`, currently at v1.5.0+).
-- The legacy `tpm-mode` branch is preserved for historical reference (v1.4.1) but
-  is not used for active development.
-- Default branch on GitHub fork: `main`.
+- Branche active : **`main`** (synced avec `upstream/main`, actuellement à v1.5.0+).
+- La branche legacy `tpm-mode` est conservée pour référence historique
+  (v1.4.1) mais n'est plus utilisée pour le développement.
+- Branche par défaut sur le fork GitHub : `main`.
 
-The binary built from this repo is symlinked at `/opt/homebrew/bin/aoe`, so
-any successful `cargo build --release` is immediately the active `aoe`
-on this user's machine.
+Le binaire compilé depuis ce dépôt est symlinké à `/opt/homebrew/bin/aoe`,
+donc tout `cargo build --release` réussi devient immédiatement le `aoe`
+actif sur la machine de l'utilisateur.
 
 ---
 
-## Hard rules for the agent (you)
+## Règles strictes pour l'agent (toi)
 
-These rules are **non-negotiable**. Violating them defeats the point of the
-fork setup.
+Ces règles sont **non-négociables**. Les violer revient à invalider tout
+l'intérêt du fork.
 
-1. **NEVER open a pull request to `Loulen/tpm-aoe`.** No `gh pr create --repo
-   Loulen/...`, no `--repo upstream`, nothing. This is a private workspace.
-2. **NEVER push to `upstream`.** It is configured as fetch-only by convention
-   (URL is the public HTTPS endpoint anyway).
-3. **All changes go to `origin` (`EnzoVentura/tpm-aoe`)**, in feature branches
-   that merge into `main`.
-4. **Sync from upstream is allowed and encouraged** to keep up with Loulen's
-   improvements:
+1. **Ne JAMAIS ouvrir une pull request vers `Loulen/tpm-aoe`.** Pas de
+   `gh pr create --repo Loulen/...`, pas de `--repo upstream`, rien. C'est
+   un espace de travail privé.
+2. **Ne JAMAIS push vers `upstream`.** Configuré comme fetch-only par
+   convention (l'URL est en HTTPS public de toute façon).
+3. **Tous les changements vont sur `origin` (`EnzoVentura/tpm-aoe`)**, dans
+   des branches de feature qui mergent vers `main`.
+4. **Le sync depuis upstream est autorisé et encouragé** pour suivre les
+   améliorations de Loulen :
    ```bash
    git fetch upstream
-   git merge upstream/main          # or rebase, user's choice
+   git merge upstream/main          # ou rebase, au choix
    git push origin main
    ```
-   But never the reverse.
-5. **Ignore the `CONTRIBUTING.md`'s upstream-style "fork & PR" instructions** —
-   they were inherited from Loulen and have been replaced. The current
-   `CONTRIBUTING.md` describes the personal-fork workflow.
-6. **Never use `--no-verify`** on commits (husky pre-commit hook is enforced).
-7. **Never modify git config** without explicit user approval (per AGENTS.md).
-8. The submodule `contrib/tpm-workflow/` points at `Loulen/tpm-workflow.git`.
-   Do not change that URL without explicit permission.
+   Mais jamais l'inverse.
+5. **Ignorer les instructions « fork & PR upstream » de l'ancien
+   `CONTRIBUTING.md`** — elles venaient de Loulen et ont été remplacées.
+   Le `CONTRIBUTING.md` actuel décrit le workflow personal-fork.
+6. **Ne jamais utiliser `--no-verify`** sur les commits (le hook husky
+   pre-commit est obligatoire).
+7. **Ne jamais modifier la config git** sans approbation explicite de
+   l'utilisateur (cf. AGENTS.md).
+8. Le submodule `contrib/tpm-workflow/` pointe sur `Loulen/tpm-workflow.git`.
+   Ne pas changer cette URL sans permission explicite.
 
 ---
 
-## What "contributing" means here
+## Ce que « contribuer » signifie ici
 
-Since there is no external collaborator, "contributing" means **making this
-fork better for its single user**.
+Comme il n'y a pas de collaborateur externe, « contribuer » signifie
+**améliorer ce fork pour son unique utilisateur**.
 
-### Standard workflow
+### Workflow standard
 
 ```bash
 cd ~/Documents/Lab/tpm-aoe
 
-# 1. Start from a fresh main
+# 1. Repartir d'une main fraîche
 git checkout main
 git pull origin main
 
-# 2. Optional: pull upstream improvements first
+# 2. Optionnel : récupérer les améliorations upstream avant
 git fetch upstream
-git merge upstream/main          # if there's anything new
+git merge upstream/main          # s'il y a du nouveau
 
-# 3. Branch off
-git checkout -b feat/short-name  # or fix/, refactor/, docs/, chore/
+# 3. Créer une branche
+git checkout -b feat/nom-court   # ou fix/, refactor/, docs/, chore/
 
-# 4. Implement, then quality gates (per AGENTS.md)
+# 4. Implémenter, puis quality gates (cf. AGENTS.md)
 cargo fmt
 cargo clippy -- -D warnings
 cargo test
 
-# 5. Build and test the actual binary locally
+# 5. Build et test du binaire en local
 ~/Documents/Lab/cerveau/aoe-rebuild.sh
 
-# 6. Commit (conventional commit style)
-git add <files>
-git commit -m "feat: short description"
+# 6. Commit (style conventional commit, message en français)
+git add <fichiers>
+git commit -m "feat: description courte du changement"
 
-# 7. Push to origin and (optionally) PR within the fork
-git push -u origin feat/short-name
-gh pr create --base main --head feat/short-name   # within EnzoVentura/tpm-aoe only
+# 7. Push sur origin et (optionnel) PR à l'intérieur du fork
+git push -u origin feat/nom-court
+gh pr create --base main --head feat/nom-court   # uniquement dans EnzoVentura/tpm-aoe
 
-# 8. Merge, delete branch
+# 8. Merge, suppression de la branche
 gh pr merge --squash --delete-branch
 git checkout main
 git pull origin main
 ```
 
-### Hotfix workflow (when a tiny change can go straight to main)
+### Workflow hotfix (changement minime direct sur main)
 
-Acceptable for trivial doc tweaks, README typos, or urgent local fixes:
+Acceptable pour des corrections triviales de doc, typos README, ou fixes
+locaux urgents :
+
 ```bash
 git checkout main
-# edit
-git commit -am "docs: fix typo"
+# édite
+git commit -am "docs: corrige une typo"
 git push origin main
 ```
-For anything touching code, prefer the branch flow.
+
+Pour tout ce qui touche du code, préfère le flow par branche.
 
 ---
 
-## Build & run
+## Build et utilisation
 
-The user has a helper script that wraps everything:
+L'utilisateur a un script helper qui enveloppe tout :
 
 ```bash
-~/Documents/Lab/cerveau/aoe-rebuild.sh           # pull + rebuild release with serve
-~/Documents/Lab/cerveau/aoe-rebuild.sh --sync    # + merge upstream/main first
-~/Documents/Lab/cerveau/aoe-rebuild.sh --dev     # build dev-release (faster, no LTO)
-~/Documents/Lab/cerveau/aoe-rebuild.sh --no-serve # skip web dashboard build
+~/Documents/Lab/cerveau/aoe-rebuild.sh           # pull + rebuild release avec serve
+~/Documents/Lab/cerveau/aoe-rebuild.sh --sync    # + merge upstream/main avant
+~/Documents/Lab/cerveau/aoe-rebuild.sh --dev     # build dev-release (rapide, sans LTO)
+~/Documents/Lab/cerveau/aoe-rebuild.sh --no-serve # sans web dashboard
 ```
 
-Manual equivalent:
+Équivalent manuel :
 
 ```bash
-export PATH="$HOME/.cargo/bin:$PATH"      # rustup proxies live here
+export PATH="$HOME/.cargo/bin:$PATH"      # les proxies rustup vivent ici
 cargo build --release --features serve
 ```
 
-The web dashboard (`aoe serve`) requires the `serve` feature (default in the
-script). Node.js + npm must be installed for the React frontend build.
+La web dashboard (`aoe serve`) requiert la feature `serve` (par défaut dans
+le script). Node.js + npm doivent être installés pour le build du frontend
+React.
 
 ---
 
-## Conventions inherited from upstream
+## Conventions héritées d'upstream
 
-For everything else — code style, module layout, testing pyramid,
-migrations, web dashboard architecture — refer to **[AGENTS.md](./AGENTS.md)**.
-The conventions there are good and we do not deviate from them. Specifically:
+Pour tout le reste — style de code, organisation des modules, pyramide de
+tests, migrations, architecture de la web dashboard — réfère-toi à
+**[AGENTS.md](./AGENTS.md)** (en anglais, ne pas traduire). Les conventions
+qui y sont définies sont valides et nous ne les contournons pas.
+Spécifiquement :
 
-- Rust: `cargo fmt` + `cargo clippy` decide; fix warnings.
-- Naming: `snake_case` modules/functions, `CamelCase` types,
-  `SCREAMING_SNAKE_CASE` constants.
-- No emdashes or `--` as separators in docs/comments.
-- Conventional commit prefixes: `feat:`, `fix:`, `docs:`, `refactor:`,
+- Rust : `cargo fmt` + `cargo clippy` font foi ; corriger les warnings.
+- Nommage : `snake_case` pour modules/fonctions, `CamelCase` pour types,
+  `SCREAMING_SNAKE_CASE` pour les constantes.
+- Pas d'em-dashes ou `--` comme séparateurs dans la doc/les commentaires.
+- Préfixes conventional commit : `feat:`, `fix:`, `docs:`, `refactor:`,
   `chore:`, `test:`.
-- Tests: unit in-module (`#[cfg(test)]`), integration in `tests/*.rs`, e2e in
-  `tests/e2e/`. Use `cargo test --test e2e` for e2e.
-- Husky pre-commit hook enforces `cargo fmt` and `cargo clippy`. Never bypass.
-- OS-specific logic stays in `src/process/{macos,linux}.rs`.
-- Settings: every configurable field must be editable in the settings TUI —
-  see AGENTS.md `## Settings & Configuration` for the wiring checklist.
-- Migrations: breaking storage changes go through `src/migrations/`, not
-  inline compat shims. See AGENTS.md `## Data Migrations`.
+- Tests : unitaires in-module (`#[cfg(test)]`), intégration dans
+  `tests/*.rs`, e2e dans `tests/e2e/`. `cargo test --test e2e` pour les e2e.
+- Le hook husky pre-commit force `cargo fmt` et `cargo clippy`. Ne jamais
+  bypass.
+- La logique OS-specific reste dans `src/process/{macos,linux}.rs`.
+- Settings : tout champ configurable doit être éditable dans la TUI settings —
+  voir AGENTS.md `## Settings & Configuration` pour la checklist de wiring.
+- Migrations : les changements de stockage breaking passent par
+  `src/migrations/`, pas par des shims inline. Voir AGENTS.md
+  `## Data Migrations`.
 
 ---
 
-## Repo cartography (quick reference)
+## Cartographie rapide du repo
 
 ```
 src/
-├── main.rs            binary entrypoint (`aoe`)
-├── lib.rs             shared library code
-├── cli/               clap command handlers
-├── tui/               ratatui UI and input handling
-├── session/           session storage, config, groups
-├── tmux/              tmux integration
-├── process/{macos,linux}.rs   OS-specific process handling
-├── docker/            Docker sandboxing
-├── git/               worktree operations
-├── server/            web dashboard backend (axum + React via rust-embed)
-├── update/            version checking against GitHub releases
-└── migrations/        versioned data migrations
+├── main.rs            point d'entrée du binaire (`aoe`)
+├── lib.rs             code de bibliothèque partagé
+├── cli/               handlers de commandes clap
+├── tui/               UI ratatui et gestion des inputs
+├── session/           stockage des sessions, config, groupes
+├── tmux/              intégration tmux
+├── process/{macos,linux}.rs   gestion process OS-specific
+├── docker/            sandboxing Docker
+├── git/               opérations sur les worktrees
+├── server/            backend web dashboard (axum + React via rust-embed)
+├── update/            vérification de version contre les releases GitHub
+└── migrations/        migrations de données versionnées
 
-web/                   React + TS frontend (Vite + Tailwind v4 + xterm.js)
-contrib/tpm-workflow/  git submodule → Loulen/tpm-workflow (the TPM plugin)
-contribute/            <unused>
-docs/                  user-facing docs (canonical source for website)
-tests/                 integration + e2e
-xtask/                 build automation workspace
+web/                   frontend React + TS (Vite + Tailwind v4 + xterm.js)
+contrib/tpm-workflow/  submodule git → Loulen/tpm-workflow (le plugin TPM)
+docs/                  doc utilisateur (source canonique pour le site web)
+tests/                 tests d'intégration + e2e
+xtask/                 workspace d'automatisation de build
 
-.claude/skills/        repo-local skills (docs-review, ship)
-target/release/aoe     the symlinked binary
+.claude/skills/        skills locaux au repo (docs-review, ship)
+target/release/aoe     le binaire symlinké
 ```
 
 ---
 
-## Submodule note: `contrib/tpm-workflow/`
+## Note sur le submodule `contrib/tpm-workflow/`
 
-This is **not** the same thing as the TPM plugin used by Claude Code.
-- The submodule here is used internally by AoE to resolve the orchestrator
-  prompt path when running TPM-mode sessions from inside this repo.
-- The plugin used by Claude Code lives at
-  `~/.claude/plugins/marketplaces/tpm-workflow/` and is managed independently.
+Ce **n'est pas** la même chose que le plugin TPM utilisé par Claude Code.
 
-If you want this fork's AoE to point at a different plugin source, set
-`TPM_WORKFLOW_PATH` in the user's environment.
+- Le submodule ici est utilisé en interne par AoE pour résoudre le path du
+  prompt orchestrator quand on lance des sessions TPM-mode depuis ce dépôt.
+- Le plugin utilisé par Claude Code vit dans
+  `~/.claude/plugins/marketplaces/tpm-workflow/` et est géré indépendamment.
 
----
-
-## Local docs (outside the repo)
-
-The user keeps personal documentation about this setup in
-`~/Documents/Lab/cerveau/`:
-
-- **`AOE-FORK-SETUP.md`** — full explanation of how this fork is wired into
-  the user's machine (symlinks, remotes, build flow, troubleshooting).
-- **`TPM-AOE-TIPS.md`** — tips for using TPM workflow + AoE together.
-- **`TPM-AOE-CHEATSHEET.html`** — visual one-pager for keybindings & commands.
-- **`aoe-rebuild.sh`** — the helper build script referenced above.
-
-If the user asks "where did I document X", check those files first.
+Si tu veux que ce fork pointe sur une autre source de plugin, définis
+`TPM_WORKFLOW_PATH` dans l'environnement de l'utilisateur.
 
 ---
 
-## When in doubt
+## Doc locale (hors du repo)
 
-- Code question → AGENTS.md.
-- Workflow question → this file.
-- Build issue → run `~/Documents/Lab/cerveau/aoe-rebuild.sh`, then read
-  `AOE-FORK-SETUP.md` if it fails.
-- Anything mentioning Loulen, "PR upstream", or "contribute back" → **stop
-  and re-read the Hard Rules section above**.
+L'utilisateur garde sa doc personnelle sur ce setup dans
+`~/Documents/Lab/cerveau/` :
+
+- **`AOE-FORK-SETUP.md`** — explication complète du wiring du fork sur la
+  machine de l'utilisateur (symlinks, remotes, build flow, troubleshooting).
+- **`TPM-AOE-TIPS.md`** — tips pour utiliser le workflow TPM + AoE.
+- **`TPM-AOE-CHEATSHEET.html`** — pense-bête visuel une-page (keybindings &
+  commandes).
+- **`aoe-rebuild.sh`** — le script helper de build mentionné plus haut.
+
+Si l'utilisateur demande « où est-ce que j'ai documenté X », vérifie ces
+fichiers en premier.
+
+---
+
+## En cas de doute
+
+- Question sur le code → AGENTS.md.
+- Question sur le workflow → ce fichier.
+- Problème de build → `~/Documents/Lab/cerveau/aoe-rebuild.sh`, puis lire
+  `AOE-FORK-SETUP.md` si ça échoue.
+- Toute mention de Loulen, « PR upstream », « contribuer en retour » →
+  **stop et relire la section "Règles strictes pour l'agent" plus haut**.
