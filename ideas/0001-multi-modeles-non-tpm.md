@@ -1,7 +1,7 @@
 ---
 id: 0001
 title: Sessions multi-modèles avec contexte projet, sans TPM
-status: idée
+status: implémenté
 priority: medium
 created: 2026-04-29
 tags: [agents, cli, tui, dx, multi-model]
