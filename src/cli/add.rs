@@ -100,6 +100,12 @@ pub struct AddArgs {
     /// Example: `--tpm-disable-agent principal-engineer --tpm-disable-agent end-user-simulator`
     #[arg(long = "tpm-disable-agent", value_name = "AGENT", action = clap::ArgAction::Append, requires = "tpm")]
     tpm_disabled_agents: Vec<String>,
+
+    /// Boot the session as the Jack orchestrator. Requires the `jack` plugin
+    /// (or a `JACK_PATH` checkout). Currently only compatible with the
+    /// `claude` tool. Mutually exclusive with `--tpm`.
+    #[arg(long, conflicts_with = "tpm")]
+    jack: bool,
 }
 
 pub async fn run(profile: &str, args: AddArgs) -> Result<()> {
@@ -364,6 +370,15 @@ pub async fn run(profile: &str, args: AddArgs) -> Result<()> {
             disabled_agents: disabled,
         };
         crate::tpm::write_tpm_config(&path, &tpm_config)?;
+    }
+
+    if args.jack {
+        instance.extra_args = crate::jack::build_jack_extra_args(
+            &instance.tool,
+            Some(&original_project_path),
+            &instance.extra_args,
+        )?;
+        instance.jack_managed = true;
     }
 
     // Handle sandbox setup

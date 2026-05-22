@@ -197,6 +197,10 @@ impl HomeView {
             dialog.render(frame, area, theme);
         }
 
+        if let Some(dialog) = &self.jack_plugin_install_dialog {
+            dialog.render(frame, area, theme);
+        }
+
         if let Some(dialog) = &self.hook_trust_dialog {
             dialog.render(frame, area, theme);
         }
@@ -494,6 +498,12 @@ impl HomeView {
                 if inst.tpm_managed {
                     line_spans.push(Span::styled(
                         " TPM",
+                        Style::default().fg(theme.accent).bold(),
+                    ));
+                }
+                if inst.jack_managed {
+                    line_spans.push(Span::styled(
+                        " JACK",
                         Style::default().fg(theme.accent).bold(),
                     ));
                 }

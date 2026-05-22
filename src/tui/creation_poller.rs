@@ -118,6 +118,7 @@ impl CreationPoller {
             tpm_tier: data.tpm_tier,
             tpm_review_passes: data.tpm_review_passes,
             tpm_disabled_agents: data.tpm_disabled_agents,
+            jack: data.jack,
         };
 
         let build_result = match builder::build_instance(params, &existing_titles, &profile) {

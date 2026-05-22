@@ -6,6 +6,7 @@ pub mod containers;
 pub mod events;
 pub mod git;
 pub mod hooks;
+pub mod jack;
 pub mod migrations;
 pub mod process;
 #[cfg(feature = "serve")]

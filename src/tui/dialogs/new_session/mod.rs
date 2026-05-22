@@ -59,6 +59,10 @@ pub(super) const FIELD_HELP: &[FieldHelp] = &[
         description: "TPM orchestration tier. Space to toggle, Ctrl+P to configure",
     },
     FieldHelp {
+        name: "Jack Mode",
+        description: "Boot the session as the Jack orchestrator. Space to toggle",
+    },
+    FieldHelp {
         name: "Worktree",
         description:
             "Branch name for git worktree (Ctrl+P to configure branch mode and extra repos)",
@@ -109,6 +113,9 @@ pub struct NewSessionData {
     pub tpm_review_passes: Option<u32>,
     /// Agent slugs to disable for this TPM session.
     pub tpm_disabled_agents: Vec<String>,
+    /// Boot the session as the Jack orchestrator. `false` means Jack mode is
+    /// off. Unlike TPM, Jack is a plain boolean toggle. See `crate::jack`.
+    pub jack: bool,
 }
 
 pub struct NewSessionDialog {
@@ -185,6 +192,17 @@ pub struct NewSessionDialog {
     pub(super) tpm_disabled_agents: Vec<String>,
     /// Text input for editing review passes in the TPM config overlay.
     pub(super) tpm_review_input: Option<Input>,
+    /// Whether the session boots as the Jack orchestrator. Unlike TPM, this
+    /// is a plain boolean toggle with no tier or configuration overlay.
+    pub(super) jack_mode: bool,
+    /// Whether this build surfaces the Jack toggle. In tests we hide the
+    /// toggle so field-index assertions stay valid; in prod this is always
+    /// true and the install popup handles the missing-plugin case.
+    pub(super) jack_available: bool,
+    /// Set to true by the toggle handler when the user tries to enable Jack
+    /// mode but the plugin is not installed. HomeView drains this flag via
+    /// `take_pending_jack_install_request` and opens the install popup.
+    pub(super) pending_jack_install_request: bool,
     /// Extra args for the selected tool (loaded from config)
     pub(super) extra_args: Input,
     /// Command override for the selected tool (loaded from config)
@@ -307,6 +325,16 @@ fn detect_tpm_available() -> bool {
     true
 }
 
+/// Whether this build surfaces the Jack Mode toggle. In tests we hide the
+/// toggle so field-index assertions in `tests.rs` stay valid. In prod we
+/// always show it; the install popup handles the missing-plugin case.
+fn detect_jack_available() -> bool {
+    if cfg!(test) {
+        return false;
+    }
+    true
+}
+
 /// Build label/value pairs for non-default inherited sandbox settings.
 fn build_inherited_settings(sandbox: &SandboxConfig) -> Vec<(String, String)> {
     let mut settings = Vec::new();
@@ -405,6 +433,7 @@ impl NewSessionDialog {
             .unwrap_or(0);
 
         let tpm_available = detect_tpm_available();
+        let jack_available = detect_jack_available();
 
         Self {
             profile: profile.to_string(),
@@ -456,6 +485,9 @@ impl NewSessionDialog {
             tpm_review_passes: config.tpm.max_review_cycles,
             tpm_disabled_agents: config.tpm.disabled_agents.clone(),
             tpm_review_input: None,
+            jack_mode: false,
+            jack_available,
+            pending_jack_install_request: false,
             extra_args: Input::new(extra_args_value),
             command_override: Input::new(command_override_value),
             error_message: None,
@@ -584,6 +616,28 @@ impl NewSessionDialog {
 
     pub fn set_tpm_tier(&mut self, tier: Option<crate::tpm::TpmTier>) {
         self.tpm_tier = tier;
+    }
+
+    /// Whether the Jack toggle should appear in the dialog. Gated by
+    /// `jack_available` (only false under `cfg(test)`; see
+    /// `detect_jack_available`) and by the selected tool being able to host
+    /// the orchestrator. Missing plugin is handled by the install popup, not
+    /// by hiding the toggle.
+    pub(super) fn show_jack_toggle(&self) -> bool {
+        self.jack_available
+            && crate::jack::validate_tool(&self.available_tools[self.tool_index]).is_ok()
+    }
+
+    pub fn take_pending_jack_install_request(&mut self) -> bool {
+        std::mem::take(&mut self.pending_jack_install_request)
+    }
+
+    pub fn set_jack_mode(&mut self, enabled: bool) {
+        self.jack_mode = enabled;
+        if enabled {
+            // Jack and TPM are mutually exclusive orchestrators.
+            self.tpm_tier = None;
+        }
     }
 
     /// The field index of the path field (shifts based on whether profile picker is visible)
@@ -722,6 +776,9 @@ impl NewSessionDialog {
             tpm_review_passes: None,
             tpm_disabled_agents: Vec::new(),
             tpm_review_input: None,
+            jack_mode: false,
+            jack_available: false,
+            pending_jack_install_request: false,
             extra_args: Input::default(),
             command_override: Input::default(),
             error_message: None,
@@ -789,6 +846,9 @@ impl NewSessionDialog {
             tpm_review_passes: None,
             tpm_disabled_agents: Vec::new(),
             tpm_review_input: None,
+            jack_mode: false,
+            jack_available: false,
+            pending_jack_install_request: false,
             extra_args: Input::default(),
             command_override: Input::default(),
             error_message: None,
@@ -919,6 +979,14 @@ impl NewSessionDialog {
         };
         let has_tpm = self.show_tpm_toggle();
         let tpm_field = if has_tpm {
+            let f = fi;
+            fi += 1;
+            f
+        } else {
+            usize::MAX
+        };
+        let has_jack = self.show_jack_toggle();
+        let jack_field = if has_jack {
             let f = fi;
             fi += 1;
             f
@@ -1118,6 +1186,23 @@ impl NewSessionDialog {
                     self.tpm_tier = None;
                 } else {
                     self.tpm_tier = Some(crate::tpm::TpmTier::Standard);
+                    // Jack and TPM are mutually exclusive orchestrators.
+                    self.jack_mode = false;
+                }
+                DialogResult::Continue
+            }
+            KeyCode::Left | KeyCode::Right | KeyCode::Char(' ')
+                if self.focused_field == jack_field =>
+            {
+                if !self.jack_mode && !crate::jack::is_installed() {
+                    // Ask HomeView to open the install popup; don't flip yet.
+                    self.pending_jack_install_request = true;
+                } else if self.jack_mode {
+                    self.jack_mode = false;
+                } else {
+                    self.jack_mode = true;
+                    // Jack and TPM are mutually exclusive orchestrators.
+                    self.tpm_tier = None;
                 }
                 DialogResult::Continue
             }
@@ -1127,6 +1212,7 @@ impl NewSessionDialog {
                     && self.focused_field != sandbox_field
                     && self.focused_field != yolo_mode_field
                     && self.focused_field != tpm_field
+                    && self.focused_field != jack_field
                 {
                     self.current_input_mut()
                         .handle_event(&crossterm::event::Event::Key(key));
@@ -1602,15 +1688,19 @@ impl NewSessionDialog {
         let has_tool_selection = self.available_tools.len() > 1;
         let has_yolo = !self.selected_tool_always_yolo();
         let has_tpm = self.show_tpm_toggle();
+        let has_jack = self.show_jack_toggle();
         let base = if self.has_profile_selection() { 1 } else { 0 };
 
         let is_host_only = self.selected_tool_host_only();
-        // Field layout: [profile], title, path, [tool], [yolo], [tpm], [worktree], [sandbox], group
+        // Field layout: [profile], title, path, [tool], [yolo], [tpm], [jack], [worktree], [sandbox], group
         let mut fi = base + 2 + if has_tool_selection { 1 } else { 0 };
         if has_yolo {
             fi += 1;
         }
         if has_tpm {
+            fi += 1;
+        }
+        if has_jack {
             fi += 1;
         }
         let worktree_field = if !is_host_only {
@@ -1711,6 +1801,10 @@ impl NewSessionDialog {
             } else {
                 Vec::new()
             },
+            // Only honor Jack mode when the field is visible, mirroring the
+            // TPM tier guard: a stale flag from a previous tool switch must
+            // not leak into the spawned session.
+            jack: self.show_jack_toggle() && self.jack_mode,
         })
     }
 

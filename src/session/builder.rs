@@ -52,6 +52,10 @@ pub struct InstanceParams {
     pub tpm_review_passes: Option<u32>,
     /// Agent slugs to disable for this TPM session.
     pub tpm_disabled_agents: Vec<String>,
+    /// When true, inject the Jack orchestrator system prompt into `extra_args`.
+    /// `false` means Jack mode is off. Unlike TPM, Jack is a plain boolean
+    /// toggle with no tier. See `crate::jack`.
+    pub jack: bool,
 }
 
 /// Result of building an instance, tracking what was created for cleanup purposes.
@@ -418,6 +422,18 @@ pub fn build_instance(
         crate::tpm::write_tpm_config(project_path, &tpm_config)?;
     }
 
+    if params.jack {
+        // Resolve the orchestrator path against the user-provided project
+        // path (not the worktree path), mirroring the TPM resolution rules.
+        let repo_root = std::path::PathBuf::from(&params.path);
+        instance.extra_args = crate::jack::build_jack_extra_args(
+            &params.tool,
+            Some(&repo_root),
+            &instance.extra_args,
+        )?;
+        instance.jack_managed = true;
+    }
+
     if params.sandbox {
         instance.sandbox_info = Some(SandboxInfo {
             enabled: true,
@@ -548,6 +564,7 @@ mod tests {
             tpm_tier: Some(crate::tpm::TpmTier::Fast),
             tpm_review_passes: None,
             tpm_disabled_agents: Vec::new(),
+            jack: false,
         };
 
         let result = build_instance(params, &[], "default").unwrap();
@@ -588,12 +605,100 @@ mod tests {
             tpm_tier: None,
             tpm_review_passes: None,
             tpm_disabled_agents: Vec::new(),
+            jack: false,
         };
 
         let result = build_instance(params, &[], "default").unwrap();
         assert!(
             !result.instance.tpm_managed,
             "tpm_managed should be false when tpm_tier is None"
+        );
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_instance_sets_jack_managed_when_jack_enabled() {
+        let temp = tempfile::TempDir::new().unwrap();
+        std::env::set_var("HOME", temp.path());
+        #[cfg(target_os = "linux")]
+        std::env::set_var("XDG_CONFIG_HOME", temp.path().join(".config"));
+
+        // Set up a fake orchestrator prompt so build_jack_extra_args resolves.
+        let jack_dir = temp.path().join("jack-plugin");
+        let agents_dir = jack_dir.join("agents");
+        std::fs::create_dir_all(&agents_dir).unwrap();
+        std::fs::write(agents_dir.join("orchestrator.md"), "# Orchestrator\n").unwrap();
+        std::env::set_var("JACK_PATH", &jack_dir);
+
+        let project_dir = temp.path().join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        let params = InstanceParams {
+            title: "jack-test".to_string(),
+            path: project_dir.to_string_lossy().to_string(),
+            group: String::new(),
+            tool: "claude".to_string(),
+            worktree_branch: None,
+            create_new_branch: false,
+            worktree_from_branch: None,
+            sandbox: false,
+            sandbox_image: String::new(),
+            yolo_mode: false,
+            extra_env: Vec::new(),
+            extra_args: String::new(),
+            command_override: String::new(),
+            extra_repo_paths: Vec::new(),
+            tpm_tier: None,
+            tpm_review_passes: None,
+            tpm_disabled_agents: Vec::new(),
+            jack: true,
+        };
+
+        let result = build_instance(params, &[], "default").unwrap();
+        assert!(
+            result.instance.jack_managed,
+            "jack_managed should be true when jack is enabled"
+        );
+
+        std::env::remove_var("JACK_PATH");
+    }
+
+    #[test]
+    #[serial]
+    fn test_build_instance_jack_managed_false_when_disabled() {
+        let temp = tempfile::TempDir::new().unwrap();
+        std::env::set_var("HOME", temp.path());
+        #[cfg(target_os = "linux")]
+        std::env::set_var("XDG_CONFIG_HOME", temp.path().join(".config"));
+
+        let project_dir = temp.path().join("project");
+        std::fs::create_dir_all(&project_dir).unwrap();
+
+        let params = InstanceParams {
+            title: "regular-test".to_string(),
+            path: project_dir.to_string_lossy().to_string(),
+            group: String::new(),
+            tool: "claude".to_string(),
+            worktree_branch: None,
+            create_new_branch: false,
+            worktree_from_branch: None,
+            sandbox: false,
+            sandbox_image: String::new(),
+            yolo_mode: false,
+            extra_env: Vec::new(),
+            extra_args: String::new(),
+            command_override: String::new(),
+            extra_repo_paths: Vec::new(),
+            tpm_tier: None,
+            tpm_review_passes: None,
+            tpm_disabled_agents: Vec::new(),
+            jack: false,
+        };
+
+        let result = build_instance(params, &[], "default").unwrap();
+        assert!(
+            !result.instance.jack_managed,
+            "jack_managed should be false when jack is disabled"
         );
     }
 

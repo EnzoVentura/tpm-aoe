@@ -48,6 +48,7 @@ impl NewSessionDialog {
         let has_worktree = !is_host_only && !self.worktree_branch.value().is_empty();
         let has_yolo = !self.selected_tool_always_yolo();
         let has_tpm = self.show_tpm_toggle();
+        let has_jack = self.show_jack_toggle();
         let dialog_width = 80;
 
         // Build constraints dynamically based on visible fields only
@@ -65,6 +66,9 @@ impl NewSessionDialog {
         }
         if has_tpm {
             constraints.push(Constraint::Length(2)); // TPM mode checkbox
+        }
+        if has_jack {
+            constraints.push(Constraint::Length(2)); // Jack mode checkbox
         }
         if !is_host_only {
             constraints.push(Constraint::Length(2)); // Worktree Branch
@@ -132,6 +136,13 @@ impl NewSessionDialog {
             usize::MAX
         };
         let tpm_field = if has_tpm {
+            let f = fi;
+            fi += 1;
+            f
+        } else {
+            usize::MAX
+        };
+        let jack_field = if has_jack {
             let f = fi;
             fi += 1;
             f
@@ -333,6 +344,39 @@ impl NewSessionDialog {
             }
 
             frame.render_widget(Paragraph::new(Line::from(tpm_spans)), chunks[ci]);
+            ci += 1;
+        }
+
+        // Jack Mode checkbox (plain ON/OFF toggle, like YOLO Mode)
+        if has_jack {
+            let is_jack_focused = self.focused_field == jack_field;
+            let jack_label_style = if is_jack_focused {
+                Style::default().fg(theme.accent).underlined()
+            } else {
+                Style::default().fg(theme.text)
+            };
+
+            let checkbox = if self.jack_mode { "[x]" } else { "[ ]" };
+            let checkbox_style = if self.jack_mode {
+                Style::default().fg(theme.accent).bold()
+            } else {
+                Style::default().fg(theme.dimmed)
+            };
+
+            let jack_line = Line::from(vec![
+                Span::styled("Jack Mode:", jack_label_style),
+                Span::raw(" "),
+                Span::styled(checkbox, checkbox_style),
+                Span::styled(
+                    " Orchestrator",
+                    if self.jack_mode {
+                        Style::default().fg(theme.accent)
+                    } else {
+                        Style::default().fg(theme.dimmed)
+                    },
+                ),
+            ]);
+            frame.render_widget(Paragraph::new(jack_line), chunks[ci]);
             ci += 1;
         }
 
@@ -1448,6 +1492,7 @@ impl NewSessionDialog {
         let has_tool_selection = self.available_tools.len() > 1;
         let has_sandbox = self.docker_available;
         let has_tpm_help = self.show_tpm_toggle();
+        let has_jack_help = self.show_jack_toggle();
         let show_sandbox_options_help = has_sandbox && self.sandbox_enabled;
 
         let dialog_width: u16 = HELP_DIALOG_WIDTH;
@@ -1456,10 +1501,13 @@ impl NewSessionDialog {
         let base_height: u16 = 17;
         // TPM help entry runs ~5 lines (description wraps to two lines).
         let tpm_height: u16 = if has_tpm_help { 5 } else { 0 };
+        // Jack help entry runs ~3 lines (single-line description).
+        let jack_height: u16 = if has_jack_help { 3 } else { 0 };
         let dialog_height: u16 = base_height
             + if has_profile_selection { 3 } else { 0 }
             + if has_tool_selection { 3 } else { 0 }
             + tpm_height
+            + jack_height
             + if has_sandbox { 3 } else { 0 }
             + if show_sandbox_options_help { 12 } else { 0 };
 
@@ -1493,14 +1541,17 @@ impl NewSessionDialog {
             if idx == 5 && !has_tpm_help {
                 continue; // TPM (hidden when plugin not installed or tool != claude)
             }
-            // idx 6 (Worktree) always shown
-            if idx == 7 && !has_sandbox {
+            if idx == 6 && !has_jack_help {
+                continue; // Jack (hidden when tool != claude)
+            }
+            // idx 7 (Worktree) always shown
+            if idx == 8 && !has_sandbox {
                 continue; // Sandbox
             }
-            if (8..=9).contains(&idx) && !show_sandbox_options_help {
+            if (9..=10).contains(&idx) && !show_sandbox_options_help {
                 continue; // Image, Env
             }
-            // idx 10 (Group) always shown
+            // idx 11 (Group) always shown
 
             lines.push(Line::from(Span::styled(
                 help.name,

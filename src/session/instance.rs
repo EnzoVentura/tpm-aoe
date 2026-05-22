@@ -141,6 +141,10 @@ pub struct Instance {
     #[serde(default)]
     pub tpm_managed: bool,
 
+    /// Whether this session is managed by the Jack workflow (created with --jack).
+    #[serde(default)]
+    pub jack_managed: bool,
+
     /// Claude Code session ID for `--resume` on restart. Discovered from
     /// Claude's filesystem (`~/.claude/projects/<project-key>/`) and cleared
     /// after a successful resume start to avoid stale IDs.
@@ -182,6 +186,7 @@ impl Instance {
             sandbox_info: None,
             terminal_info: None,
             tpm_managed: false,
+            jack_managed: false,
             claude_session_id: None,
             source_profile: String::new(),
             last_error_check: None,

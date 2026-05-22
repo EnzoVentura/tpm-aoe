@@ -281,6 +281,8 @@ pub async fn create_session(
             tpm_tier: None,
             tpm_review_passes: None,
             tpm_disabled_agents: Vec::new(),
+            // The web dashboard does not yet expose Jack mode either.
+            jack: false,
             // No equivalent in the web API today — defaults to HEAD.
             worktree_from_branch: None,
         };

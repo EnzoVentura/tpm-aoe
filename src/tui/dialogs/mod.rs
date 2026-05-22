@@ -8,6 +8,7 @@ mod group_delete_options;
 mod hook_trust;
 mod hooks_install;
 mod info;
+mod jack_plugin_install;
 mod new_session;
 mod profile_picker;
 #[cfg(feature = "serve")]
@@ -25,6 +26,7 @@ pub use group_delete_options::{GroupDeleteOptions, GroupDeleteOptionsDialog};
 pub use hook_trust::{HookTrustAction, HookTrustDialog};
 pub use hooks_install::HooksInstallDialog;
 pub use info::InfoDialog;
+pub use jack_plugin_install::JackPluginInstallDialog;
 pub use new_session::{NewSessionData, NewSessionDialog};
 pub use profile_picker::{ProfileEntry, ProfilePickerAction, ProfilePickerDialog};
 #[cfg(feature = "serve")]

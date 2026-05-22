@@ -1850,6 +1850,7 @@ fn test_create_session_in_all_mode_is_findable() {
         tpm_tier: None,
         tpm_review_passes: None,
         tpm_disabled_agents: Vec::new(),
+        jack: false,
     };
 
     let session_id = view.create_session(data).unwrap();
@@ -2513,6 +2514,7 @@ fn test_apply_creation_results_returns_session_id() {
         tpm_tier: None,
         tpm_review_passes: None,
         tpm_disabled_agents: Vec::new(),
+        jack: false,
     };
 
     // Use the async CreationPoller path (pass None hooks, non-sandbox,

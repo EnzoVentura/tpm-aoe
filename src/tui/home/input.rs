@@ -10,8 +10,9 @@ use crate::session::{list_profiles, repo_config, resolve_config, Item, Status};
 use crate::tui::app::Action;
 use crate::tui::dialogs::{
     ConfirmDialog, DeleteDialogConfig, DialogResult, GroupDeleteOptionsDialog, HookTrustAction,
-    HooksInstallDialog, InfoDialog, NewSessionData, NewSessionDialog, ProfilePickerAction,
-    RenameDialog, RenameMode, SendMessageDialog, TpmPluginInstallDialog, UnifiedDeleteDialog,
+    HooksInstallDialog, InfoDialog, JackPluginInstallDialog, NewSessionData, NewSessionDialog,
+    ProfilePickerAction, RenameDialog, RenameMode, SendMessageDialog, TpmPluginInstallDialog,
+    UnifiedDeleteDialog,
 };
 use crate::tui::diff::{DiffAction, DiffView};
 use crate::tui::settings::{SettingsAction, SettingsView};
@@ -205,6 +206,33 @@ impl HomeView {
             return None;
         }
 
+        if let Some(dialog) = &mut self.jack_plugin_install_dialog {
+            match dialog.handle_key(key) {
+                DialogResult::Continue => {}
+                DialogResult::Cancel => {
+                    self.jack_plugin_install_dialog = None;
+                    // jack_mode was never set, nothing else to undo.
+                }
+                DialogResult::Submit(_) => {
+                    self.jack_plugin_install_dialog = None;
+                    match crate::jack::install() {
+                        Ok(()) => {
+                            if let Some(nd) = self.new_dialog.as_mut() {
+                                nd.set_jack_mode(true);
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("jack plugin install failed: {e:#}");
+                            if let Some(nd) = self.new_dialog.as_mut() {
+                                nd.set_error_message(format!("Jack plugin install failed: {}", e));
+                            }
+                        }
+                    }
+                }
+            }
+            return None;
+        }
+
         if let Some(dialog) = &mut self.hook_trust_dialog {
             match dialog.handle_key(key) {
                 DialogResult::Continue => {}
@@ -251,6 +279,10 @@ impl HomeView {
         if let Some(nd) = self.new_dialog.as_mut() {
             if nd.take_pending_tpm_install_request() {
                 self.tpm_plugin_install_dialog = Some(TpmPluginInstallDialog::new());
+                return None;
+            }
+            if nd.take_pending_jack_install_request() {
+                self.jack_plugin_install_dialog = Some(JackPluginInstallDialog::new());
                 return None;
             }
         }
