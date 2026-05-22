@@ -181,6 +181,10 @@ pub struct SessionConfig {
     #[serde(default)]
     pub yolo_mode_default: bool,
 
+    /// Enable Jack orchestration mode by default for new sessions
+    #[serde(default)]
+    pub jack_mode_default: bool,
+
     /// Per-agent extra arguments appended after the binary (e.g., opencode = "--port 8080")
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub agent_extra_args: HashMap<String, String>,

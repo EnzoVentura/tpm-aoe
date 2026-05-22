@@ -174,6 +174,9 @@ pub struct SessionConfigOverride {
     pub yolo_mode_default: Option<bool>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub jack_mode_default: Option<bool>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent_extra_args: Option<HashMap<String, String>>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -371,6 +374,9 @@ pub fn apply_session_overrides(
     }
     if let Some(yolo_mode_default) = source.yolo_mode_default {
         target.yolo_mode_default = yolo_mode_default;
+    }
+    if let Some(jack_mode_default) = source.jack_mode_default {
+        target.jack_mode_default = jack_mode_default;
     }
     if let Some(ref args) = source.agent_extra_args {
         target.agent_extra_args = args.clone();

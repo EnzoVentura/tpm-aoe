@@ -26,15 +26,21 @@ pub enum Template {
     /// workflow: worktrees on by default, YOLO on (orchestrator runs unattended),
     /// sounds off (background sessions shouldn't beep).
     Tpm,
+    /// Defaults tuned for the Jack orchestration workflow: mirrors the TPM
+    /// template (worktrees on, YOLO on, sounds off) and additionally enables
+    /// Jack Mode by default so the new-session dialog comes up with the Jack
+    /// toggle pre-checked.
+    Jack,
 }
 
 impl Template {
     /// All known template identifiers, used by clap to validate the flag value.
-    pub const ALL: &'static [&'static str] = &["tpm"];
+    pub const ALL: &'static [&'static str] = &["tpm", "jack"];
 
     pub fn as_str(self) -> &'static str {
         match self {
             Template::Tpm => "tpm",
+            Template::Jack => "jack",
         }
     }
 }
@@ -45,6 +51,7 @@ impl FromStr for Template {
     fn from_str(s: &str) -> Result<Self> {
         match s.to_ascii_lowercase().as_str() {
             "tpm" => Ok(Template::Tpm),
+            "jack" => Ok(Template::Jack),
             other => bail!(
                 "Unknown profile template: '{}'. Known templates: {}",
                 other,
@@ -59,6 +66,7 @@ impl FromStr for Template {
 pub fn build(template: Template) -> ProfileConfig {
     match template {
         Template::Tpm => tpm_profile(),
+        Template::Jack => jack_profile(),
     }
 }
 
@@ -93,6 +101,41 @@ fn tpm_profile() -> ProfileConfig {
     }
 }
 
+fn jack_profile() -> ProfileConfig {
+    ProfileConfig {
+        worktree: Some(WorktreeConfigOverride {
+            enabled: Some(true),
+            // Keep Jack worktrees in their own sibling directory so a single
+            // repo can mix jack-orchestrated and ad-hoc worktrees without
+            // collisions. {repo-name} and {branch} are expanded by the
+            // worktree builder; the orchestrator sets {branch} to a slug like
+            // `jack-{task}`.
+            path_template: Some("../{repo-name}-jack/{branch}".to_string()),
+            auto_cleanup: Some(true),
+            ..Default::default()
+        }),
+        session: Some(SessionConfigOverride {
+            // Orchestrator-spawned sessions run unattended. The user is
+            // already trusting the orchestrator; per-tool permission prompts
+            // would block the workflow.
+            yolo_mode_default: Some(true),
+            // Pre-check the Jack Mode toggle in the new-session dialog so
+            // sessions created under this profile are Jack-managed with zero
+            // manual configuration.
+            jack_mode_default: Some(true),
+            ..Default::default()
+        }),
+        // Background Jack sessions completing every few minutes shouldn't
+        // beep. Users can re-enable in settings.toml if they want audible
+        // notifications.
+        sound: Some(SoundConfigOverride {
+            enabled: Some(false),
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -101,6 +144,8 @@ mod tests {
     fn template_from_str_accepts_known() {
         assert_eq!(Template::from_str("tpm").unwrap(), Template::Tpm);
         assert_eq!(Template::from_str("TPM").unwrap(), Template::Tpm);
+        assert_eq!(Template::from_str("jack").unwrap(), Template::Jack);
+        assert_eq!(Template::from_str("JACK").unwrap(), Template::Jack);
     }
 
     #[test]
@@ -108,6 +153,7 @@ mod tests {
         let err = Template::from_str("nope").unwrap_err().to_string();
         assert!(err.contains("Unknown profile template"));
         assert!(err.contains("tpm"));
+        assert!(err.contains("jack"));
     }
 
     #[test]
@@ -152,6 +198,59 @@ mod tests {
         let parsed: ProfileConfig = toml::from_str(&serialized).unwrap();
         assert_eq!(parsed.worktree.unwrap().enabled, Some(true));
         assert_eq!(parsed.session.unwrap().yolo_mode_default, Some(true));
+    }
+
+    #[test]
+    fn jack_template_enables_worktrees() {
+        let cfg = build(Template::Jack);
+        let wt = cfg.worktree.expect("worktree override should be set");
+        assert_eq!(wt.enabled, Some(true));
+        assert_eq!(
+            wt.path_template.as_deref(),
+            Some("../{repo-name}-jack/{branch}")
+        );
+    }
+
+    #[test]
+    fn jack_template_enables_yolo_default() {
+        let cfg = build(Template::Jack);
+        let session = cfg.session.expect("session override should be set");
+        assert_eq!(session.yolo_mode_default, Some(true));
+    }
+
+    #[test]
+    fn jack_template_enables_jack_mode_default() {
+        let cfg = build(Template::Jack);
+        let session = cfg.session.expect("session override should be set");
+        assert_eq!(session.jack_mode_default, Some(true));
+    }
+
+    #[test]
+    fn jack_template_disables_sound() {
+        let cfg = build(Template::Jack);
+        let sound = cfg.sound.expect("sound override should be set");
+        assert_eq!(sound.enabled, Some(false));
+    }
+
+    #[test]
+    fn jack_template_serializes_to_non_empty_toml() {
+        let cfg = build(Template::Jack);
+        let toml = toml::to_string_pretty(&cfg).unwrap();
+        assert!(toml.contains("[worktree]"));
+        assert!(toml.contains("[session]"));
+        assert!(toml.contains("[sound]"));
+        assert!(toml.contains("enabled = true"));
+    }
+
+    #[test]
+    fn jack_template_roundtrips_through_toml() {
+        let cfg = build(Template::Jack);
+        let serialized = toml::to_string_pretty(&cfg).unwrap();
+        let parsed: ProfileConfig = toml::from_str(&serialized).unwrap();
+        assert_eq!(parsed.worktree.unwrap().enabled, Some(true));
+        let session = parsed.session.unwrap();
+        assert_eq!(session.yolo_mode_default, Some(true));
+        assert_eq!(session.jack_mode_default, Some(true));
     }
 
     /// End-to-end smoke test: `create_profile_with_template` should write a

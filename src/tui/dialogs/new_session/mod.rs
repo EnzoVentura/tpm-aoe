@@ -435,6 +435,15 @@ impl NewSessionDialog {
         let tpm_available = detect_tpm_available();
         let jack_available = detect_jack_available();
 
+        // Pre-check Jack Mode when the resolved profile enables it, but only if
+        // the Jack toggle would actually be available — never activate a mode
+        // the dialog can't display. Mirrors `show_jack_toggle()` gating.
+        let jack_toggle_available = jack_available
+            && available_tools
+                .get(tool_index)
+                .is_some_and(|tool| crate::jack::validate_tool(tool).is_ok());
+        let jack_mode = jack_toggle_available && config.session.jack_mode_default;
+
         Self {
             profile: profile.to_string(),
             available_profiles,
@@ -485,7 +494,7 @@ impl NewSessionDialog {
             tpm_review_passes: config.tpm.max_review_cycles,
             tpm_disabled_agents: config.tpm.disabled_agents.clone(),
             tpm_review_input: None,
-            jack_mode: false,
+            jack_mode,
             jack_available,
             pending_jack_install_request: false,
             extra_args: Input::new(extra_args_value),
@@ -670,6 +679,15 @@ impl NewSessionDialog {
         // Reset sandbox/yolo defaults
         self.yolo_mode_default = config.session.yolo_mode_default;
         self.yolo_mode = self.yolo_mode_default;
+
+        // Reset Jack Mode from the resolved profile, but only when the Jack
+        // toggle is actually available so we never activate an unavailable
+        // mode. `tool_index` was reset above, so `show_jack_toggle()` is valid.
+        self.jack_mode = self.show_jack_toggle() && config.session.jack_mode_default;
+        if self.jack_mode {
+            // Jack and TPM are mutually exclusive orchestrators.
+            self.tpm_tier = None;
+        }
         self.sandbox_enabled = self.docker_available
             && config.sandbox.enabled_by_default
             && !self.selected_tool_host_only();
